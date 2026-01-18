@@ -39,7 +39,21 @@ const app = {
         };
 
         this.setupEventListeners();
+        
+        // Load AI Model
+        this.loadModel().then(() => {
+            console.log("AI Model Loaded");
+        });
+
         this.simulateLoading();
+    },
+
+    async loadModel() {
+        try {
+            this.mobilenetModel = await mobilenet.load();
+        } catch (error) {
+            console.error("Error loading MobileNet:", error);
+        }
     },
 
     setupEventListeners() {
@@ -368,19 +382,16 @@ const app = {
 
     renderScavengerGame() {
         // All available objectives (12 total)
+        // All available objectives (Updated for AI detection)
         const allObjectives = [
-            { id: 1, question: '¿Qué usas para la lluvia?', hint: 'Algo que te protege del agua', icon: '☂️', found: false },
-            { id: 2, question: '¿Dónde guardas tus libros?', hint: 'Un mueble con estantes', icon: '📚', found: false },
-            { id: 3, question: '¿Qué usas para ver la hora?', hint: 'Puede estar en tu muñeca', icon: '⌚', found: false },
-            { id: 4, question: '¿Con qué te cepillas los dientes?', hint: 'Está en el baño', icon: '🪥', found: false },
-            { id: 5, question: '¿Qué usas para iluminar en la oscuridad?', hint: 'Emite luz', icon: '🔦', found: false },
-            { id: 6, question: '¿Dónde guardas la comida fría?', hint: 'Electrodoméstico de cocina', icon: '🧊', found: false },
-            { id: 7, question: '¿Con qué escribes?', hint: 'Tiene tinta o grafito', icon: '✏️', found: false },
-            { id: 8, question: '¿Qué usas para escuchar música?', hint: 'Puede ir en tus oídos', icon: '🎧', found: false },
-            { id: 9, question: '¿Dónde te sientas para comer?', hint: 'Un mueble con patas', icon: '🪑', found: false },
-            { id: 10, question: '¿Con qué te secas después de bañarte?', hint: 'Es suave y absorbente', icon: '🛁', found: false },
-            { id: 11, question: '¿Qué usas para abrir una puerta?', hint: 'Es metálica y pequeña', icon: '🔑', found: false },
-            { id: 12, question: '¿Dónde duermes?', hint: 'Tiene almohada y sábanas', icon: '🛏️', found: false }
+            { id: 1, question: '¿Qué usas para escribir en la computadora?', hint: 'Tiene muchas teclas', icon: '⌨️', target: ['computer keyboard', 'keyboard', 'typewriter keyboard'], found: false },
+            { id: 2, question: '¿Con qué mueves el cursor?', hint: 'Tiene botones y rueda', icon: '🖱️', target: ['computer mouse', 'mouse'], found: false },
+            { id: 3, question: '¿De qué bebes café?', hint: 'Tiene un asa', icon: '☕', target: ['coffee mug', 'cup', 'mug', 'coffeepot'], found: false },
+            { id: 4, question: '¿Qué usas para hidratarte?', hint: 'Generalmente es de plástico', icon: '🧴', target: ['water bottle', 'bottle', 'pop bottle'], found: false },
+            { id: 5, question: '¿Qué usas para llamar?', hint: 'Es inteligente', icon: '📱', target: ['cellular telephone', 'cellphone', 'mobile phone', 'dial telephone'], found: false },
+            { id: 6, question: '¿Con qué cambias la TV?', hint: 'Tiene muchos botones', icon: '📺', target: ['remote control', 'remote'], found: false },
+            { id: 7, question: '¿Dónde ves videos?', hint: 'Tiene pantalla', icon: '💻', target: ['laptop', 'notebook', 'laptop computer', 'monitor', 'screen'], found: false },
+            { id: 8, question: '¿Qué usas para jugar?', hint: 'Tiene palancas', icon: '🎮', target: ['joystick', 'gamepad', 'controller'], found: false },
         ];
         
         // Shuffle and pick 3 random objectives
@@ -534,68 +545,102 @@ const app = {
             </div>
         `;
 
-        // Simulate scan result (70% success rate)
-        setTimeout(() => {
-            const success = Math.random() < 0.7;
+        // AI Classification
+        const videoElement = document.getElementById('camera-feed');
+        
+        if (!this.mobilenetModel || !videoElement) {
+             // Fallback if model not loaded
+             setTimeout(() => {
+                 this.handleScanResult(false, null);
+             }, 1000);
+             return;
+        }
 
-            if (success) {
-                // Success!
-                const current = this.scavengerState.objectives[this.scavengerState.currentIndex];
-                current.found = true;
-                this.scavengerState.score += 100;
+        this.mobilenetModel.classify(videoElement).then(predictions => {
+            console.log('Predictions:', predictions);
+            const current = this.scavengerState.objectives[this.scavengerState.currentIndex];
+            
+            // Check if any of the top 3 predictions match the target keywords
+            let match = false;
+            let detectedName = predictions[0] ? predictions[0].className.split(',')[0] : 'nada';
 
-                feedbackArea.innerHTML = `
-                    <div class="bg-green-500/20 border border-green-500/40 rounded-2xl px-6 py-3 flex items-center gap-3 animate-in zoom-in">
-                        <span class="text-3xl">✅</span>
-                        <div>
-                            <p class="text-green-400 font-bold">¡Encontrado!</p>
-                            <p class="text-green-300/60 text-xs">+100 puntos</p>
-                        </div>
-                    </div>
-                `;
-
-                scanArea.classList.remove('border-primary');
-                scanArea.classList.add('border-green-500', 'shadow-[0_0_30px_rgba(34,197,94,0.5)]');
-
-                // Move to next objective or finish
-                setTimeout(() => {
-                    const remaining = this.scavengerState.objectives.filter(o => !o.found);
-                    if (remaining.length === 0) {
-                        clearInterval(this.scavengerTimer);
-                        this.finishScavengerGame();
-                    } else {
-                        // Find next unfound objective
-                        this.scavengerState.currentIndex = this.scavengerState.objectives.findIndex(o => !o.found);
-                        this.scavengerState.isScanning = false;
-                        this.renderScavengerUI();
-                        this.setupScavengerGame();
-                    }
-                }, 1500);
-            } else {
-                // Fail
-                feedbackArea.innerHTML = `
-                    <div class="bg-red-500/20 border border-red-500/40 rounded-2xl px-6 py-3 flex items-center gap-3 animate-in zoom-in">
-                        <span class="text-3xl">❌</span>
-                        <div>
-                            <p class="text-red-400 font-bold">No encontrado</p>
-                            <p class="text-red-300/60 text-xs">¡Sigue buscando!</p>
-                        </div>
-                    </div>
-                `;
-
-                scanArea.classList.remove('border-primary');
-                scanArea.classList.add('border-red-500', 'shadow-[0_0_30px_rgba(239,68,68,0.5)]');
-
-                setTimeout(() => {
-                    scanArea.classList.remove('border-red-500', 'shadow-[0_0_30px_rgba(239,68,68,0.5)]');
-                    scanArea.classList.add('border-primary/40');
-                    feedbackArea.innerHTML = '';
-                    btnScan.disabled = false;
-                    btnScan.classList.remove('opacity-50');
-                    this.scavengerState.isScanning = false;
-                }, 1500);
+            for (const prediction of predictions) {
+                if (current.target.some(t => prediction.className.toLowerCase().includes(t.toLowerCase()))) {
+                    match = true;
+                    detectedName = prediction.className.split(',')[0];
+                    break;
+                }
             }
-        }, 1500);
+
+            this.handleScanResult(match, detectedName);
+        }).catch(err => {
+            console.error(err);
+             this.handleScanResult(false, 'error');
+        });
+    },
+
+    handleScanResult(success, detectedObject) {
+        const feedbackArea = document.getElementById('feedback-area');
+        const scanArea = document.getElementById('scan-area');
+        const btnScan = document.getElementById('btn-scan');
+
+        if (success) {
+            // Success!
+            const current = this.scavengerState.objectives[this.scavengerState.currentIndex];
+            current.found = true;
+            this.scavengerState.score += 100;
+
+            feedbackArea.innerHTML = `
+                <div class="bg-green-500/20 border border-green-500/40 rounded-2xl px-6 py-3 flex items-center gap-3 animate-in zoom-in">
+                    <span class="text-3xl">✅</span>
+                    <div>
+                        <p class="text-green-400 font-bold">¡Encontrado!</p>
+                        <p class="text-green-300/60 text-xs">Es un(a) ${detectedObject}</p>
+                    </div>
+                </div>
+            `;
+
+            scanArea.classList.remove('border-primary');
+            scanArea.classList.add('border-green-500', 'shadow-[0_0_30px_rgba(34,197,94,0.5)]');
+
+            // Move to next objective or finish
+            setTimeout(() => {
+                const remaining = this.scavengerState.objectives.filter(o => !o.found);
+                if (remaining.length === 0) {
+                    clearInterval(this.scavengerTimer);
+                    this.finishScavengerGame();
+                } else {
+                    // Find next unfound objective
+                    this.scavengerState.currentIndex = this.scavengerState.objectives.findIndex(o => !o.found);
+                    this.scavengerState.isScanning = false;
+                    this.renderScavengerUI();
+                    this.setupScavengerGame();
+                }
+            }, 2000);
+        } else {
+            // Fail
+            feedbackArea.innerHTML = `
+                <div class="bg-red-500/20 border border-red-500/40 rounded-2xl px-6 py-3 flex items-center gap-3 animate-in zoom-in">
+                    <span class="text-3xl">❌</span>
+                    <div>
+                        <p class="text-red-400 font-bold">No es eso</p>
+                        <p class="text-red-300/60 text-xs">Veo: ${detectedObject || 'nada'}</p>
+                    </div>
+                </div>
+            `;
+
+            scanArea.classList.remove('border-primary');
+            scanArea.classList.add('border-red-500', 'shadow-[0_0_30px_rgba(239,68,68,0.5)]');
+
+            setTimeout(() => {
+                scanArea.classList.remove('border-red-500', 'shadow-[0_0_30px_rgba(239,68,68,0.5)]');
+                scanArea.classList.add('border-primary/40');
+                feedbackArea.innerHTML = '';
+                btnScan.disabled = false;
+                btnScan.classList.remove('opacity-50');
+                this.scavengerState.isScanning = false;
+            }, 2000);
+        }
     },
 
     finishScavengerGame() {
@@ -797,10 +842,64 @@ const app = {
                 btn.classList.add('bg-primary/30', 'border-2', 'border-primary');
             });
         });
+
+        // Eraser button
+        document.getElementById('btn-eraser').addEventListener('click', () => {
+            this.doodleState.currentColor = '#ffffff';
+            document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('ring-2', 'ring-white', 'ring-offset-2', 'ring-offset-background-dark'));
+        });
+
+        // Clear button
+        document.getElementById('btn-clear').addEventListener('click', () => {
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        });
+
+        // Timer
+        const timerEl = document.getElementById('doodle-timer');
+        this.doodleTimer = setInterval(() => {
+            this.doodleState.timeLeft--;
+            timerEl.textContent = this.doodleState.timeLeft;
+            if (this.doodleState.timeLeft <= 10) {
+                timerEl.classList.add('animate-pulse', 'text-red-400');
+            }
+            if (this.doodleState.timeLeft <= 0) {
+                clearInterval(this.doodleTimer);
+                this.showLeaderboard();
+            }
+        }, 1000);
+    },
+
+    nextMinigame() {
+        if (this.state.currentMinigame === 'contraption') {
+            this.state.currentMinigame = 'scavenger';
+            this.initMinigame('scavenger');
+        } else if (this.state.currentMinigame === 'scavenger') {
+            this.state.currentMinigame = 'doodle';
+            this.initMinigame('doodle');
+        } else {
+            this.showLeaderboard();
+        }
+    },
+
+    showLeaderboard() {
+        // Clear all game timers
+        if (this.contraptionTimer) {
+            clearInterval(this.contraptionTimer);
+            this.contraptionTimer = null;
+        }
+        if (this.scavengerTimer) {
+            clearInterval(this.scavengerTimer);
+            this.scavengerTimer = null;
+        }
+        if (this.doodleTimer) {
+            clearInterval(this.doodleTimer);
+            this.doodleTimer = null;
+        }
+        this.showScreen('leaderboard');
     },
 
     generateRoomCode() {
-        // Simple random 4 letter code
         const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
         let code = '';
         for (let i = 0; i < 4; i++) {
@@ -809,24 +908,15 @@ const app = {
         return code;
     },
 
-    nextMinigame() {
-        // Simple flow for demo: Contraption -> Scavenger -> Doodle -> Leaderboard
-        if (this.state.currentMinigame === 'contraption') {
-            this.selectMinigame('scavenger');
-        } else if (this.state.currentMinigame === 'scavenger') {
-            this.selectMinigame('doodle');
-        } else if (this.state.currentMinigame === 'doodle') {
-            this.showScreen('leaderboard');
-        }
+    showSettings() {
+        this.dom.screens.settings.classList.remove('hidden');
+        this.dom.screens.settings.classList.add('fade-in');
     },
 
-    showLeaderboard() {
-        if (this.doodleTimer) clearInterval(this.doodleTimer);
-        this.showScreen('leaderboard');
+    hideSettings() {
+        this.dom.screens.settings.classList.add('hidden');
     }
 };
 
-// Initialize App
-document.addEventListener('DOMContentLoaded', () => {
-    app.init();
-});
+// Start app
+window.addEventListener('DOMContentLoaded', () => app.init());
