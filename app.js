@@ -216,11 +216,22 @@ const app = {
         this.dom.gameFooter.classList.remove('hidden');
         this.dom.gameFooter.innerHTML = '';
 
+        // Reset footer classes to default (relative/static)
+        this.dom.gameFooter.className = 'w-full z-10 bg-surface-dark border-t border-white/5';
+        this.dom.gameContent.className = 'flex-1 relative flex flex-col items-center p-6'; // Reset content classes
+
         if (minigame === 'contraption') {
+            this.dom.gameContent.classList.add('overflow-y-auto', 'pb-48'); // Enable scroll for contraption
+            this.dom.gameFooter.className = 'w-full z-10 bg-surface-dark border-t border-white/5 relative p-6';
             this.renderContraptionGame();
         } else if (minigame === 'scavenger') {
+            // Scavenger needs absolute footer for immersive camera
+            this.dom.gameFooter.className = 'p-6 pb-32 absolute bottom-0 w-full bg-gradient-to-t from-background-dark via-background-dark/80 to-transparent z-10';
+            this.dom.gameContent.classList.add('overflow-hidden'); // No native scroll, full screen
             this.renderScavengerGame();
         } else if (minigame === 'doodle') {
+            this.dom.gameContent.className = 'flex-1 relative flex flex-col items-center p-4 overflow-hidden'; // No scroll for canvas
+             this.dom.gameFooter.className = 'w-full z-10 bg-surface-dark border-t border-white/5 relative p-4';
             this.renderDoodleGame();
         }
     },
