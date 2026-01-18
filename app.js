@@ -407,7 +407,7 @@ const app = {
 
         this.dom.gameContent.innerHTML = `
             <div class="absolute inset-0 bg-slate-900 overflow-hidden">
-                <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuCppaCGxPelRQRc9YcGhhK94VZ0V2-Z5VbuSMp3m7ZKCpmcCsNt9BPYXeXBTfj9FItGVOHR3jChvAmXjxWRO4qTeoXADnsaYFr5oJDHLS7ZDcu0Uc_-FOWt8MsgNUUltPKmCzwQ4P8siH8Jmnq_lWpZtWgHN6P6bKNYuBeGmJHj262ILu2j88JunL3hDuwdxFXdb5FISPYyLjAS-0mTqRRHTW6MZj7kFwwamK2AJe4-zqtkoXSWrxeovFfmFl5rwFqdI_j8GcC8QxA" class="h-full w-full object-cover opacity-60">
+                <video id="camera-feed" autoplay playsinline muted class="h-full w-full object-cover opacity-60"></video>
                 <div class="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/80"></div>
                 <div id="scan-line" class="absolute inset-x-0 top-1/2 h-1 bg-primary/40 shadow-[0_0_15px_#f425af] scan-line"></div>
             </div>
@@ -464,6 +464,9 @@ const app = {
     setupScavengerGame() {
         // Scan button
         document.getElementById('btn-scan').addEventListener('click', () => this.performScan());
+        
+        // Start Camera
+        this.startCamera();
 
         // Timer
         this.scavengerTimer = setInterval(() => {
@@ -480,6 +483,35 @@ const app = {
                 this.finishScavengerGame();
             }
         }, 1000);
+    },
+
+    async startCamera() {
+        const videoElement = document.getElementById('camera-feed');
+        if (!videoElement) return;
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { 
+                    facingMode: 'environment' // Prefer back camera
+                } 
+            });
+            videoElement.srcObject = stream;
+        } catch (err) {
+            console.error("Error accessing camera:", err);
+            // Fallback UI or alert
+            const feedbackArea = document.getElementById('feedback-area');
+            if(feedbackArea) {
+                 feedbackArea.innerHTML = `
+                    <div class="bg-red-500/20 border border-red-500/40 rounded-2xl px-6 py-3 flex items-center gap-3 animate-in zoom-in">
+                        <span class="text-3xl">🚫</span>
+                        <div>
+                            <p class="text-red-400 font-bold">Cámara Bloqueada</p>
+                            <p class="text-red-300/60 text-xs">Permite el acceso para jugar</p>
+                        </div>
+                    </div>
+                `;
+            }
+        }
     },
 
     performScan() {
@@ -765,64 +797,10 @@ const app = {
                 btn.classList.add('bg-primary/30', 'border-2', 'border-primary');
             });
         });
-
-        // Eraser button
-        document.getElementById('btn-eraser').addEventListener('click', () => {
-            this.doodleState.currentColor = '#ffffff';
-            document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('ring-2', 'ring-white', 'ring-offset-2', 'ring-offset-background-dark'));
-        });
-
-        // Clear button
-        document.getElementById('btn-clear').addEventListener('click', () => {
-            ctx.fillStyle = 'white';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-        });
-
-        // Timer
-        const timerEl = document.getElementById('doodle-timer');
-        this.doodleTimer = setInterval(() => {
-            this.doodleState.timeLeft--;
-            timerEl.textContent = this.doodleState.timeLeft;
-            if (this.doodleState.timeLeft <= 10) {
-                timerEl.classList.add('animate-pulse', 'text-red-400');
-            }
-            if (this.doodleState.timeLeft <= 0) {
-                clearInterval(this.doodleTimer);
-                this.showLeaderboard();
-            }
-        }, 1000);
-    },
-
-    nextMinigame() {
-        if (this.state.currentMinigame === 'contraption') {
-            this.state.currentMinigame = 'scavenger';
-            this.initMinigame('scavenger');
-        } else if (this.state.currentMinigame === 'scavenger') {
-            this.state.currentMinigame = 'doodle';
-            this.initMinigame('doodle');
-        } else {
-            this.showLeaderboard();
-        }
-    },
-
-    showLeaderboard() {
-        // Clear all game timers
-        if (this.contraptionTimer) {
-            clearInterval(this.contraptionTimer);
-            this.contraptionTimer = null;
-        }
-        if (this.scavengerTimer) {
-            clearInterval(this.scavengerTimer);
-            this.scavengerTimer = null;
-        }
-        if (this.doodleTimer) {
-            clearInterval(this.doodleTimer);
-            this.doodleTimer = null;
-        }
-        this.showScreen('leaderboard');
     },
 
     generateRoomCode() {
+        // Simple random 4 letter code
         const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
         let code = '';
         for (let i = 0; i < 4; i++) {
@@ -831,15 +809,24 @@ const app = {
         return code;
     },
 
-    showSettings() {
-        this.dom.screens.settings.classList.remove('hidden');
-        this.dom.screens.settings.classList.add('fade-in');
+    nextMinigame() {
+        // Simple flow for demo: Contraption -> Scavenger -> Doodle -> Leaderboard
+        if (this.state.currentMinigame === 'contraption') {
+            this.selectMinigame('scavenger');
+        } else if (this.state.currentMinigame === 'scavenger') {
+            this.selectMinigame('doodle');
+        } else if (this.state.currentMinigame === 'doodle') {
+            this.showScreen('leaderboard');
+        }
     },
 
-    hideSettings() {
-        this.dom.screens.settings.classList.add('hidden');
+    showLeaderboard() {
+        if (this.doodleTimer) clearInterval(this.doodleTimer);
+        this.showScreen('leaderboard');
     }
 };
 
-// Start app
-window.addEventListener('DOMContentLoaded', () => app.init());
+// Initialize App
+document.addEventListener('DOMContentLoaded', () => {
+    app.init();
+});
