@@ -178,15 +178,18 @@
                     </div>
                     <div id="player-grid" class="grid grid-cols-4 gap-4 justify-items-center"></div>
                 </div>
-            </main>
 
-            <div class="shrink-0 w-full p-6 pt-0 bg-background-dark pb-[env(safe-area-inset-bottom,24px)]">
-                <button id="btn-start-game"
-                    class="w-full h-16 rounded-xl bg-primary text-white font-bold text-lg shadow-lg shadow-primary/30 flex items-center justify-center gap-2 active:scale-95 transition-all">
-                    <span class="material-symbols-outlined">play_circle</span>
-                    Iniciar Partida
-                </button>
-            </div>
+                <!-- Spacer to push button to bottom if space permits, allows scrolling if not -->
+                <div class="flex-1 min-h-[4rem]"></div>
+
+                <div class="w-full pt-6 pb-32">
+                    <button id="btn-start-game"
+                        class="w-full h-16 rounded-xl bg-primary text-white font-bold text-lg shadow-lg shadow-primary/30 flex items-center justify-center gap-2 active:scale-95 transition-all">
+                        <span class="material-symbols-outlined">play_circle</span>
+                        Iniciar Partida
+                    </button>
+                </div>
+            </main>
         </section>
 
         <!-- SCREEN: GAME SELECTION -->
