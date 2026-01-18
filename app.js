@@ -231,7 +231,7 @@ const app = {
             this.dom.gameContent.classList.add('overflow-hidden'); // No native scroll, full screen
             this.renderScavengerGame();
         } else if (minigame === 'doodle') {
-            this.dom.gameContent.className = 'flex-1 relative flex flex-col items-center p-4 pt-20 overflow-hidden'; // Added pt-20 to clear header
+            this.dom.gameContent.className = 'flex-1 relative flex flex-col items-center p-4 overflow-y-auto'; // Enable scroll
              this.dom.gameFooter.className = 'w-full z-10 bg-surface-dark border-t border-white/5 relative p-4';
             this.renderDoodleGame();
         }
@@ -280,7 +280,7 @@ const app = {
                     </div>
                 </div>
                 
-                <div class="flex-1 bg-surface-dark/50 rounded-2xl border-2 border-dashed border-white/20 p-4 relative overflow-hidden shrink-0 min-h-[250px]">
+                <div class="flex-1 bg-surface-dark/50 rounded-2xl border-2 border-dashed border-white/20 p-4 relative overflow-hidden">
                     <div class="absolute inset-0 flex items-center justify-center opacity-30 pointer-events-none">
                         <span class="material-symbols-outlined text-6xl text-white/20">construction</span>
                     </div>
@@ -288,7 +288,7 @@ const app = {
                     <div id="construction-area" class="flex flex-wrap gap-2 justify-center content-start min-h-[120px]"></div>
                 </div>
 
-                <div class="bg-surface-accent/50 rounded-2xl p-4 border border-white/10 shrink-0">
+                <div class="bg-surface-accent/50 rounded-2xl p-4 border border-white/10">
                     <p class="text-primary text-[10px] font-bold uppercase tracking-widest mb-3">Piezas Disponibles</p>
                     <div id="piece-inventory" class="grid grid-cols-3 gap-3"></div>
                 </div>
@@ -393,6 +393,7 @@ const app = {
     },
 
     renderScavengerGame() {
+        // All available objectives (12 total)
         // All available objectives (Updated for AI detection)
         const allObjectives = [
             { id: 1, question: '¿Qué usas para escribir en la computadora?', hint: 'Tiene muchas teclas', icon: '⌨️', target: ['computer keyboard', 'keyboard', 'typewriter keyboard'], found: false },
@@ -636,6 +637,7 @@ const app = {
         });
     },
 
+
     handleScanResult(success, detectedObject) {
         const feedbackArea = document.getElementById('feedback-area');
         const scanArea = document.getElementById('scan-area');
@@ -784,8 +786,8 @@ const app = {
         };
 
         this.dom.gameContent.innerHTML = `
-            <div class="w-full flex flex-col h-full gap-3 pb-2">
-                <div class="bg-gradient-to-br from-primary/20 to-purple-600/20 border border-primary/30 backdrop-blur-md rounded-2xl p-3 text-center flex items-center justify-between">
+            <div class="w-full flex flex-col h-full gap-3 pb-8">
+                <div class="bg-gradient-to-br from-primary/20 to-purple-600/20 border border-primary/30 backdrop-blur-md rounded-2xl p-3 text-center flex items-center justify-between shrink-0">
                     <div class="flex-1 text-left">
                         <p class="text-primary font-bold text-[10px] uppercase tracking-widest mb-1">Tu Misión Secreta</p>
                         <h2 class="text-xl font-bold">${currentWord}</h2>
@@ -795,7 +797,7 @@ const app = {
                         <span class="text-xs text-white/40">s</span>
                     </div>
                 </div>
-                <div class="flex-1 bg-white rounded-2xl border-4 border-surface-accent shadow-2xl relative overflow-hidden">
+                <div class="w-full aspect-square bg-white rounded-2xl border-4 border-surface-accent shadow-2xl relative overflow-hidden shrink-0">
                     <canvas id="doodle-canvas" class="w-full h-full touch-none"></canvas>
                 </div>
             </div>
