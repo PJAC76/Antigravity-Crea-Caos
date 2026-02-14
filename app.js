@@ -13,7 +13,8 @@ const app = {
             music: 70,
             sfx: 50,
             largeText: false
-        }
+        },
+        matchHistoryKey: 'creaCaosMatchHistory'
     },
 
     init() {
@@ -60,6 +61,72 @@ const app = {
         document.getElementById('btn-start-game')?.addEventListener('click', () => {
             this.startGame();
         });
+    },
+
+    trackEvent(name, payload = {}) {
+        console.log('[telemetry]', name, payload);
+    },
+
+    clearAllGameTimers() {
+        if (this.contraptionTimer) {
+            clearInterval(this.contraptionTimer);
+            this.contraptionTimer = null;
+        }
+        if (this.scavengerTimer) {
+            clearInterval(this.scavengerTimer);
+            this.scavengerTimer = null;
+        }
+        if (this.doodleTimer) {
+            clearInterval(this.doodleTimer);
+            this.doodleTimer = null;
+        }
+    },
+
+    getCurrentMatchScore() {
+        return (this.charadesState?.score || 0) + (this.scavengerState?.score || 0) + (this.spotState?.score || 0);
+    },
+
+    loadMatchHistory() {
+        try {
+            const raw = localStorage.getItem(this.state.matchHistoryKey);
+            const parsed = raw ? JSON.parse(raw) : [];
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (e) {
+            console.warn('No se pudo cargar historial local', e);
+            return [];
+        }
+    },
+
+    saveMatchResult() {
+        const history = this.loadMatchHistory();
+        const entry = {
+            date: new Date().toISOString(),
+            winner: 'Equipo Rojo',
+            score: this.getCurrentMatchScore(),
+            schemaVersion: 1
+        };
+        history.unshift(entry);
+        const top5 = history.slice(0, 5);
+        localStorage.setItem(this.state.matchHistoryKey, JSON.stringify(top5));
+        return top5;
+    },
+
+    renderMatchHistory(items) {
+        const container = document.getElementById('match-history');
+        if (!container) return;
+
+        if (!items.length) {
+            container.innerHTML = '<p class="text-xs text-white/40">Sin historial todavía.</p>';
+            return;
+        }
+
+        container.innerHTML = items.map((item, idx) => {
+            const date = new Date(item.date).toLocaleDateString('es-ES');
+            return `<div class="bg-surface-dark/50 rounded-xl p-3 border border-white/10 flex items-center justify-between">
+                <span class="text-xs text-white/70">#${idx + 1} · ${date}</span>
+                <span class="text-primary font-bold text-sm">${item.score} pts</span>
+            </div>`;
+        }).join('');
     },
 
     simulateLoading() {
@@ -192,6 +259,7 @@ const app = {
 
     selectMinigame(minigame) {
         console.log(`Minigame selected: ${minigame}`);
+        this.trackEvent('minigame_selected', { minigame });
         this.state.currentMinigame = minigame;
         this.showScreen('game');
         this.initMinigame(minigame);
@@ -200,18 +268,8 @@ const app = {
 
     initMinigame(minigame) {
         // Clear any existing timers from previous games
-        if (this.contraptionTimer) {
-            clearInterval(this.contraptionTimer);
-            this.contraptionTimer = null;
-        }
-        if (this.scavengerTimer) {
-            clearInterval(this.scavengerTimer);
-            this.scavengerTimer = null;
-        }
-        if (this.doodleTimer) {
-            clearInterval(this.doodleTimer);
-            this.doodleTimer = null;
-        }
+        this.clearAllGameTimers();
+        this.trackEvent('minigame_init', { minigame });
 
         this.dom.gameContent.innerHTML = '';
         this.dom.gameFooter.classList.remove('hidden');
@@ -221,20 +279,281 @@ const app = {
         this.dom.gameFooter.className = 'w-full z-10 bg-surface-dark border-t border-white/5';
         this.dom.gameContent.className = 'flex-1 relative flex flex-col items-center p-6'; // Reset content classes
 
-        if (minigame === 'contraption') {
-            this.dom.gameContent.classList.add('overflow-y-auto', 'pb-48'); // Enable scroll for contraption
-            this.dom.gameFooter.className = 'w-full z-10 bg-surface-dark border-t border-white/5 relative p-6';
-            this.renderContraptionGame();
+        if (minigame === 'charades') {
+            this.dom.gameContent.classList.add('overflow-y-auto', 'pb-40');
+            this.dom.gameFooter.className = 'w-full z-10 bg-surface-dark border-t border-white/5 relative p-4';
+            this.renderCharadesGame();
         } else if (minigame === 'scavenger') {
             // Scavenger needs absolute footer for immersive camera
             this.dom.gameFooter.className = 'p-6 pb-32 absolute bottom-0 w-full bg-gradient-to-t from-background-dark via-background-dark/80 to-transparent z-10';
             this.dom.gameContent.classList.add('overflow-hidden'); // No native scroll, full screen
             this.renderScavengerGame();
-        } else if (minigame === 'doodle') {
-            this.dom.gameContent.className = 'flex-1 relative flex flex-col items-center p-4 overflow-y-auto'; // Enable scroll
-             this.dom.gameFooter.className = 'w-full z-10 bg-surface-dark border-t border-white/5 relative p-4';
-            this.renderDoodleGame();
+        } else if (minigame === 'spot') {
+            this.dom.gameContent.className = 'flex-1 relative flex flex-col items-center p-4 overflow-y-auto';
+            this.dom.gameFooter.className = 'w-full z-10 bg-surface-dark border-t border-white/5 relative p-4';
+            this.renderSpotGame();
         }
+    },
+
+    renderCharadesGame() {
+        const categories = ['Animales', 'Deportes', 'Profesiones', 'Acciones'];
+        const cards = [
+            'Delfín', 'Portero', 'Chef', 'Patinar', 'Búho', 'Astronauta', 'Bostezar', 'Saque de tenis'
+        ];
+        this.charadesState = {
+            score: 0,
+            combo: 0,
+            hits: 0,
+            passes: 0,
+            timeLeft: 45,
+            cards,
+            currentCard: cards[Math.floor(Math.random() * cards.length)],
+            category: categories[Math.floor(Math.random() * categories.length)]
+        };
+
+        this.dom.gameContent.innerHTML = `
+            <div class="w-full max-w-md animate-in fade-in">
+                <div class="bg-surface-dark/70 border border-white/10 rounded-2xl p-4 mb-4">
+                    <p class="text-primary text-xs font-bold tracking-widest uppercase">Charades Cam</p>
+                    <p class="text-white/60 text-sm mt-1">Actúa sin hablar. Tu equipo adivina.</p>
+                </div>
+                <div class="grid grid-cols-3 gap-2 mb-4 text-center">
+                    <div class="bg-surface-accent/70 rounded-xl p-2 border border-white/10"><p class="text-[10px] text-white/50 uppercase">Tiempo</p><p id="charades-timer" class="text-xl font-black text-primary">45</p></div>
+                    <div class="bg-surface-accent/70 rounded-xl p-2 border border-white/10"><p class="text-[10px] text-white/50 uppercase">Combo</p><p id="charades-combo" class="text-xl font-black">0</p></div>
+                    <div class="bg-surface-accent/70 rounded-xl p-2 border border-white/10"><p class="text-[10px] text-white/50 uppercase">Score</p><p id="charades-score" class="text-xl font-black">0</p></div>
+                </div>
+                <div class="bg-gradient-to-br from-primary/20 to-purple-500/20 border border-primary/30 rounded-3xl p-6 text-center">
+                    <p id="charades-category" class="text-xs uppercase tracking-widest text-primary font-bold mb-2">${this.charadesState.category}</p>
+                    <h2 id="charades-card" class="text-4xl font-black mb-1">${this.charadesState.currentCard}</h2>
+                    <p class="text-white/50 text-xs">Describe con mímica</p>
+                </div>
+                <div id="charades-feedback" class="h-12 flex items-center justify-center text-sm mt-4 text-white/60"></div>
+            </div>
+        `;
+
+        this.dom.gameFooter.innerHTML = `
+            <div class="grid grid-cols-2 gap-2 w-full">
+                <button id="btn-charades-hit" class="h-12 rounded-full bg-green-500 text-white font-bold">✅ Acierto</button>
+                <button id="btn-charades-pass" class="h-12 rounded-full bg-white/10 border border-white/20 text-white font-bold">⏭ Pasar (-20)</button>
+            </div>
+        `;
+
+        this.setupCharadesGame();
+    },
+
+    setupCharadesGame() {
+        const nextCard = () => {
+            const cards = this.charadesState.cards;
+            this.charadesState.currentCard = cards[Math.floor(Math.random() * cards.length)];
+            document.getElementById('charades-card').textContent = this.charadesState.currentCard;
+        };
+
+        document.getElementById('btn-charades-hit').addEventListener('click', () => {
+            this.charadesState.hits++;
+            this.charadesState.combo++;
+            this.charadesState.score += 100 + (this.charadesState.combo > 1 ? 15 : 0);
+            document.getElementById('charades-score').textContent = this.charadesState.score;
+            document.getElementById('charades-combo').textContent = this.charadesState.combo;
+            document.getElementById('charades-feedback').innerHTML = '<span class="text-green-400 font-bold">¡Sí! +100</span>';
+            nextCard();
+        });
+
+        document.getElementById('btn-charades-pass').addEventListener('click', () => {
+            this.charadesState.passes++;
+            this.charadesState.combo = 0;
+            this.charadesState.score = Math.max(0, this.charadesState.score - 20);
+            document.getElementById('charades-score').textContent = this.charadesState.score;
+            document.getElementById('charades-combo').textContent = this.charadesState.combo;
+            document.getElementById('charades-feedback').innerHTML = '<span class="text-yellow-300 font-bold">Siguiente carta (-20)</span>';
+            nextCard();
+        });
+
+        const timerEl = document.getElementById('charades-timer');
+        this.contraptionTimer = setInterval(() => {
+            this.charadesState.timeLeft--;
+            timerEl.textContent = this.charadesState.timeLeft;
+            if (this.charadesState.timeLeft <= 10) timerEl.classList.add('text-red-400', 'animate-pulse');
+            if (this.charadesState.timeLeft <= 0) {
+                clearInterval(this.contraptionTimer);
+                this.nextMinigame();
+            }
+        }, 1000);
+    },
+
+    renderSpotGame() {
+        const levels = [
+            {
+                title: 'Parque Creativo',
+                hint: 'Toca en la imagen de la derecha donde veas diferencias',
+                leftItems: [
+                    { x: 0.2, y: 0.18, icon: '☀️' },
+                    { x: 0.76, y: 0.22, icon: '☁️' },
+                    { x: 0.2, y: 0.62, icon: '🌳' },
+                    { x: 0.5, y: 0.72, icon: '🛝' },
+                    { x: 0.78, y: 0.72, icon: '🐶' },
+                    { x: 0.47, y: 0.38, icon: '🎈' }
+                ],
+                rightItems: [
+                    { x: 0.2, y: 0.18, icon: '🌙' },
+                    { x: 0.76, y: 0.22, icon: '🌧️' },
+                    { x: 0.2, y: 0.62, icon: '🌴' },
+                    { x: 0.5, y: 0.72, icon: '🎠' },
+                    { x: 0.78, y: 0.72, icon: '🐱' },
+                    { x: 0.47, y: 0.38, icon: '🎈' }
+                ],
+                differences: [
+                    { id: 'sun', x: 0.2, y: 0.18, r: 0.09 },
+                    { id: 'cloud', x: 0.76, y: 0.22, r: 0.1 },
+                    { id: 'tree', x: 0.2, y: 0.62, r: 0.1 },
+                    { id: 'slide', x: 0.5, y: 0.72, r: 0.1 },
+                    { id: 'pet', x: 0.78, y: 0.72, r: 0.1 }
+                ]
+            },
+            {
+                title: 'Laboratorio Loco',
+                hint: 'Encuentra los 5 cambios para ganar bonus',
+                leftItems: [
+                    { x: 0.22, y: 0.24, icon: '🧪' },
+                    { x: 0.5, y: 0.22, icon: '⚗️' },
+                    { x: 0.76, y: 0.24, icon: '🔬' },
+                    { x: 0.24, y: 0.68, icon: '🧫' },
+                    { x: 0.52, y: 0.66, icon: '🤖' },
+                    { x: 0.76, y: 0.68, icon: '💡' }
+                ],
+                rightItems: [
+                    { x: 0.22, y: 0.24, icon: '🧴' },
+                    { x: 0.5, y: 0.22, icon: '🧬' },
+                    { x: 0.76, y: 0.24, icon: '🛰️' },
+                    { x: 0.24, y: 0.68, icon: '🧯' },
+                    { x: 0.52, y: 0.66, icon: '👾' },
+                    { x: 0.76, y: 0.68, icon: '💡' }
+                ],
+                differences: [
+                    { id: 'vial', x: 0.22, y: 0.24, r: 0.1 },
+                    { id: 'center', x: 0.5, y: 0.22, r: 0.1 },
+                    { id: 'scope', x: 0.76, y: 0.24, r: 0.1 },
+                    { id: 'dish', x: 0.24, y: 0.68, r: 0.1 },
+                    { id: 'bot', x: 0.52, y: 0.66, r: 0.1 }
+                ]
+            }
+        ];
+
+        const level = levels[Math.floor(Math.random() * levels.length)];
+
+        this.spotState = {
+            score: 0,
+            foundDifferences: 0,
+            mistakes: 0,
+            totalDifferences: level.differences.length,
+            timeLeft: 60,
+            level,
+            foundIds: new Set()
+        };
+
+        const renderItems = (items) => items.map(item => `
+            <span class="absolute -translate-x-1/2 -translate-y-1/2 text-2xl" style="left:${item.x * 100}%; top:${item.y * 100}%;">${item.icon}</span>
+        `).join('');
+
+        this.dom.gameContent.innerHTML = `
+            <div class="w-full max-w-xl animate-in fade-in">
+                <div class="grid grid-cols-3 gap-2 mb-4 text-center">
+                    <div class="bg-surface-accent/70 rounded-xl p-2 border border-white/10"><p class="text-[10px] text-white/50 uppercase">Tiempo</p><p id="spot-timer" class="text-xl font-black text-primary">60</p></div>
+                    <div class="bg-surface-accent/70 rounded-xl p-2 border border-white/10"><p class="text-[10px] text-white/50 uppercase">Dif.</p><p id="spot-found" class="text-xl font-black">0/${this.spotState.totalDifferences}</p></div>
+                    <div class="bg-surface-accent/70 rounded-xl p-2 border border-white/10"><p class="text-[10px] text-white/50 uppercase">Score</p><p id="spot-score" class="text-xl font-black">0</p></div>
+                </div>
+                <div class="bg-surface-dark/60 border border-white/10 rounded-2xl p-4 mb-4">
+                    <p class="text-primary text-xs font-bold tracking-widest uppercase mb-1">${level.title}</p>
+                    <p class="text-sm text-white/70 mb-3">${level.hint}</p>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div id="spot-board-left" class="relative aspect-square rounded-xl bg-gradient-to-br from-sky-900/40 to-emerald-900/30 border border-white/10 overflow-hidden">
+                            ${renderItems(level.leftItems)}
+                        </div>
+                        <div id="spot-board-right" class="relative aspect-square rounded-xl bg-gradient-to-br from-sky-900/40 to-emerald-900/30 border-2 border-primary/50 overflow-hidden cursor-crosshair touch-manipulation">
+                            ${renderItems(level.rightItems)}
+                            <div id="spot-markers" class="absolute inset-0 pointer-events-none"></div>
+                        </div>
+                    </div>
+                </div>
+                <div id="spot-feedback" class="h-10 flex items-center justify-center text-sm text-white/60"></div>
+            </div>
+        `;
+
+        this.dom.gameFooter.innerHTML = `
+            <button id="btn-finish-spot" class="w-full h-12 rounded-full bg-white text-black font-bold">Finalizar ronda</button>
+        `;
+
+        this.setupSpotGame();
+    },
+
+    setupSpotGame() {
+        const foundEl = document.getElementById('spot-found');
+        const scoreEl = document.getElementById('spot-score');
+        const feedbackEl = document.getElementById('spot-feedback');
+        const boardRight = document.getElementById('spot-board-right');
+        const markers = document.getElementById('spot-markers');
+        const level = this.spotState.level;
+
+        const renderMarker = (x, y) => {
+            const marker = document.createElement('div');
+            marker.className = 'absolute size-8 rounded-full border-2 border-green-400 bg-green-400/20 -translate-x-1/2 -translate-y-1/2';
+            marker.style.left = `${x * 100}%`;
+            marker.style.top = `${y * 100}%`;
+            markers.appendChild(marker);
+        };
+
+        const findDifferenceAt = (x, y) => level.differences.find(diff => {
+            if (this.spotState.foundIds.has(diff.id)) return false;
+            const dx = x - diff.x;
+            const dy = y - diff.y;
+            return Math.hypot(dx, dy) <= diff.r;
+        });
+
+        boardRight.addEventListener('click', (e) => {
+            const rect = boardRight.getBoundingClientRect();
+            const x = (e.clientX - rect.left) / rect.width;
+            const y = (e.clientY - rect.top) / rect.height;
+            const match = findDifferenceAt(x, y);
+
+            if (match) {
+                this.spotState.foundIds.add(match.id);
+                this.spotState.foundDifferences++;
+                this.spotState.score += 60;
+                foundEl.textContent = `${this.spotState.foundDifferences}/${this.spotState.totalDifferences}`;
+                scoreEl.textContent = this.spotState.score;
+                renderMarker(match.x, match.y);
+                feedbackEl.innerHTML = '<span class="text-green-400 font-bold">¡Bien visto! +60</span>';
+                this.trackEvent('spot_hit', { found: this.spotState.foundDifferences });
+
+                if (this.spotState.foundDifferences >= this.spotState.totalDifferences) {
+                    const bonus = this.spotState.timeLeft > 30 ? 60 : this.spotState.timeLeft >= 10 ? 30 : 10;
+                    this.spotState.score += 100 + bonus;
+                    scoreEl.textContent = this.spotState.score;
+                    feedbackEl.innerHTML = `<span class="text-primary font-bold">¡Ronda completa! +${100 + bonus}</span>`;
+                    this.trackEvent('spot_round_complete', { score: this.spotState.score, bonus });
+                    setTimeout(() => this.nextMinigame(), 800);
+                }
+            } else {
+                this.spotState.mistakes++;
+                this.spotState.score = Math.max(0, this.spotState.score - 15);
+                scoreEl.textContent = this.spotState.score;
+                feedbackEl.innerHTML = '<span class="text-red-400 font-bold">No está ahí (-15)</span>';
+                this.trackEvent('spot_miss', { mistakes: this.spotState.mistakes });
+            }
+        });
+
+        document.getElementById('btn-finish-spot').addEventListener('click', () => this.nextMinigame());
+
+        const timerEl = document.getElementById('spot-timer');
+        this.doodleTimer = setInterval(() => {
+            this.spotState.timeLeft--;
+            timerEl.textContent = this.spotState.timeLeft;
+            if (this.spotState.timeLeft <= 10) timerEl.classList.add('text-red-400', 'animate-pulse');
+            if (this.spotState.timeLeft <= 0) {
+                clearInterval(this.doodleTimer);
+                this.trackEvent('spot_timeout', { score: this.spotState.score });
+                this.nextMinigame();
+            }
+        }, 1000);
     },
 
     renderContraptionGame() {
@@ -949,32 +1268,23 @@ const app = {
     },
 
     nextMinigame() {
-        if (this.state.currentMinigame === 'contraption') {
+        if (this.state.currentMinigame === 'charades') {
             this.state.currentMinigame = 'scavenger';
             this.initMinigame('scavenger');
         } else if (this.state.currentMinigame === 'scavenger') {
-            this.state.currentMinigame = 'doodle';
-            this.initMinigame('doodle');
+            this.state.currentMinigame = 'spot';
+            this.initMinigame('spot');
         } else {
             this.showLeaderboard();
         }
     },
 
     showLeaderboard() {
-        // Clear all game timers
-        if (this.contraptionTimer) {
-            clearInterval(this.contraptionTimer);
-            this.contraptionTimer = null;
-        }
-        if (this.scavengerTimer) {
-            clearInterval(this.scavengerTimer);
-            this.scavengerTimer = null;
-        }
-        if (this.doodleTimer) {
-            clearInterval(this.doodleTimer);
-            this.doodleTimer = null;
-        }
+        this.clearAllGameTimers();
+        const history = this.saveMatchResult();
+        this.trackEvent('match_finished', { score: this.getCurrentMatchScore() });
         this.showScreen('leaderboard');
+        this.renderMatchHistory(history);
     },
 
     generateRoomCode() {

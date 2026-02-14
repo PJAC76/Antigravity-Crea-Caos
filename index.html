@@ -201,15 +201,15 @@
             </header>
 
             <main class="flex-1 space-y-4 overflow-y-auto pb-32 px-6">
-                <!-- Game Card: Contraption -->
-                <button onclick="app.selectMinigame('contraption')"
+                <!-- Game Card: Charades -->
+                <button onclick="app.selectMinigame('charades')"
                     class="w-full bg-surface-dark border border-white/10 rounded-2xl p-4 flex items-center gap-4 active:scale-95 transition-all text-left group">
                     <div
                         class="size-20 rounded-xl bg-gradient-to-br from-blue-500/20 to-primary/20 flex items-center justify-center text-4xl group-hover:scale-110 transition-transform">
-                        ⚙️</div>
+                        🎭</div>
                     <div class="flex-1">
-                        <h3 class="font-bold text-lg text-white">Contraption Craft Off</h3>
-                        <p class="text-white/40 text-xs">Construye máquinas locas en equipo.</p>
+                        <h3 class="font-bold text-lg text-white">Charades Cam</h3>
+                        <p class="text-white/40 text-xs">Mímica rápida por equipos con rachas.</p>
                     </div>
                     <span class="material-symbols-outlined text-primary">play_arrow</span>
                 </button>
@@ -227,15 +227,15 @@
                     <span class="material-symbols-outlined text-primary">play_arrow</span>
                 </button>
 
-                <!-- Game Card: Doodle -->
-                <button onclick="app.selectMinigame('doodle')"
+                <!-- Game Card: Spot -->
+                <button onclick="app.selectMinigame('spot')"
                     class="w-full bg-surface-dark border border-white/10 rounded-2xl p-4 flex items-center gap-4 active:scale-95 transition-all text-left group">
                     <div
                         class="size-20 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center text-4xl group-hover:scale-110 transition-transform">
-                        🎨</div>
+                        🔍</div>
                     <div class="flex-1">
-                        <h3 class="font-bold text-lg text-white">Doodle-Duelo</h3>
-                        <p class="text-white/40 text-xs">¡Dibuja y adivina el caos!</p>
+                        <h3 class="font-bold text-lg text-white">Spot the Difference Live</h3>
+                        <p class="text-white/40 text-xs">Encuentra 5 diferencias antes del tiempo.</p>
                     </div>
                     <span class="material-symbols-outlined text-primary">play_arrow</span>
                 </button>
@@ -288,6 +288,10 @@
                             <span class="font-bold">Tú (Host)</span>
                         </div>
                         <span class="text-primary font-black">2,450 pts</span>
+                    </div>
+                    <div class="bg-surface-dark/40 rounded-2xl p-4 border border-white/10">
+                        <p class="text-[10px] font-bold tracking-widest uppercase text-primary mb-3">Historial Local (Top 5)</p>
+                        <div id="match-history" class="space-y-2"></div>
                     </div>
                 </div>
             </main>
@@ -400,17 +404,17 @@
                 <!-- Game 1 -->
                 <div class="bg-surface-dark/50 rounded-2xl p-5 border border-white/10">
                     <div class="flex items-center gap-3 mb-4">
-                        <div class="size-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center text-2xl">⚙️</div>
+                        <div class="size-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-primary/20 flex items-center justify-center text-2xl">🎭</div>
                         <div>
-                            <h3 class="font-bold text-white">Contraption Craft Off</h3>
-                            <p class="text-primary text-xs font-bold uppercase tracking-widest">Juego de Construcción</p>
+                            <h3 class="font-bold text-white">Charades Cam</h3>
+                            <p class="text-primary text-xs font-bold uppercase tracking-widest">Mímica por Equipos</p>
                         </div>
                     </div>
                     <div class="space-y-2 text-sm text-white/70">
-                        <p>🔧 <strong class="text-white">Objetivo:</strong> Construye la máquina más loca añadiendo piezas.</p>
-                        <p>⏱️ <strong class="text-white">Tiempo:</strong> 45 segundos para construir.</p>
-                        <p>⭐ <strong class="text-white">Puntos:</strong> Cada pieza vale entre 8 y 25 puntos.</p>
-                        <p>💡 <strong class="text-white">Consejo:</strong> ¡Añade muchas piezas para máxima puntuación!</p>
+                        <p>🎬 <strong class="text-white">Objetivo:</strong> Actúa la carta sin hablar para que tu equipo adivine.</p>
+                        <p>⏱️ <strong class="text-white">Tiempo:</strong> 45 segundos por ronda.</p>
+                        <p>⭐ <strong class="text-white">Puntos:</strong> +100 por acierto, bonus por racha y velocidad.</p>
+                        <p>⏭️ <strong class="text-white">Pase:</strong> Puedes pasar carta, pero resta 20 puntos.</p>
                     </div>
                 </div>
 
@@ -434,17 +438,17 @@
                 <!-- Game 3 -->
                 <div class="bg-surface-dark/50 rounded-2xl p-5 border border-white/10">
                     <div class="flex items-center gap-3 mb-4">
-                        <div class="size-12 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center text-2xl">🎨</div>
+                        <div class="size-12 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center text-2xl">🔍</div>
                         <div>
-                            <h3 class="font-bold text-white">Doodle-Duelo</h3>
-                            <p class="text-primary text-xs font-bold uppercase tracking-widest">Dibujo Creativo</p>
+                            <h3 class="font-bold text-white">Spot the Difference Live</h3>
+                            <p class="text-primary text-xs font-bold uppercase tracking-widest">Encuentra Diferencias</p>
                         </div>
                     </div>
                     <div class="space-y-2 text-sm text-white/70">
-                        <p>✏️ <strong class="text-white">Objetivo:</strong> Dibuja la palabra secreta que te aparece.</p>
-                        <p>⏱️ <strong class="text-white">Tiempo:</strong> 60 segundos para dibujar.</p>
-                        <p>🎨 <strong class="text-white">Herramientas:</strong> 7 colores, 3 grosores, borrador y limpiar.</p>
-                        <p>💡 <strong class="text-white">Consejo:</strong> ¡Sé creativo y diviértete dibujando!</p>
+                        <p>🧠 <strong class="text-white">Objetivo:</strong> Encuentra las 5 diferencias tocando la imagen de la derecha.</p>
+                        <p>⏱️ <strong class="text-white">Tiempo:</strong> 60 segundos por ronda.</p>
+                        <p>⭐ <strong class="text-white">Puntos:</strong> +60 por acierto, -15 por fallo y bonus al completar.</p>
+                        <p>🎯 <strong class="text-white">Consejo:</strong> Observa primero toda la escena y luego toca con precisión.</p>
                     </div>
                 </div>
 
@@ -455,7 +459,7 @@
                         <li>• Juega con 2-8 amigos para máxima diversión</li>
                         <li>• El jugador con más puntos totales gana</li>
                         <li>• ¡No te rindas si fallas un escaneo!</li>
-                        <li>• En Doodle, los dibujos simples funcionan mejor</li>
+                        <li>• En Spot, empieza por esquinas y objetos grandes</li>
                     </ul>
                 </div>
             </main>
